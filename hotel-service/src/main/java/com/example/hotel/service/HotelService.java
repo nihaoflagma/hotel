@@ -26,7 +26,7 @@ public class HotelService {
         this.lockRepository = lockRepository;
     }
 
-    // CRUD-операции
+    
     public List<Hotel> listHotels() { return hotelRepository.findAll(); }
     public Optional<Hotel> getHotel(Long id) { return hotelRepository.findById(id); }
     public Hotel saveHotel(Hotel h) { return hotelRepository.save(h); }
@@ -37,14 +37,14 @@ public class HotelService {
     public Room saveRoom(Room r) { return roomRepository.save(r); }
     public void deleteRoom(Long id) { roomRepository.deleteById(id); }
 
-    // Доступность: удержание/подтверждение/освобождение с идемпотентностью по requestId
+    
     @Transactional
     public RoomReservationLock holdRoom(String requestId, Long roomId, LocalDate startDate, LocalDate endDate) {
         Optional<RoomReservationLock> existing = lockRepository.findByRequestId(requestId);
         if (existing.isPresent()) {
             return existing.get();
         }
-        // Проверка конфликтующих удержаний или подтверждений
+        
         List<RoomReservationLock> conflicts = lockRepository
                 .findByRoomIdAndStatusInAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
                         roomId,
@@ -69,13 +69,13 @@ public class HotelService {
         RoomReservationLock lock = lockRepository.findByRequestId(requestId)
                 .orElseThrow(() -> new IllegalStateException("Hold not found"));
         if (lock.getStatus() == RoomReservationLock.Status.CONFIRMED) {
-            return lock; // идемпотентность
+            return lock; 
         }
         if (lock.getStatus() == RoomReservationLock.Status.RELEASED) {
             throw new IllegalStateException("Удержание уже снято");
         }
         lock.setStatus(RoomReservationLock.Status.CONFIRMED);
-        // Увеличиваем счётчик бронирований для статистики
+        
         roomRepository.findById(lock.getRoomId()).ifPresent(room -> {
             room.setTimesBooked(room.getTimesBooked() + 1);
             roomRepository.save(room);
@@ -88,10 +88,10 @@ public class HotelService {
         RoomReservationLock lock = lockRepository.findByRequestId(requestId)
                 .orElseThrow(() -> new IllegalStateException("Hold not found"));
         if (lock.getStatus() == RoomReservationLock.Status.RELEASED) {
-            return lock; // идемпотентность
+            return lock; 
         }
         if (lock.getStatus() == RoomReservationLock.Status.CONFIRMED) {
-            return lock; // уже подтверждено; ничего не делаем для идемпотентности
+            return lock; 
         }
         lock.setStatus(RoomReservationLock.Status.RELEASED);
         return lockRepository.save(lock);
