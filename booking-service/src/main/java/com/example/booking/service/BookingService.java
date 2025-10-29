@@ -43,7 +43,7 @@ public class BookingService {
     @Transactional
     public Booking createBooking(Long userId, Long roomId, LocalDate start, LocalDate end, String requestId) {
         String correlationId = UUID.randomUUID().toString();
-        // Идемпотентность: если запрос с таким requestId уже обработан — возвращаем существующую запись
+        
         Booking existing = bookingRepository.findByRequestId(requestId).orElse(null);
         if (existing != null) {
             return existing;
@@ -68,16 +68,16 @@ public class BookingService {
         );
 
         try {
-            // Удержание слота (hold)
+            
             callHotel("/rooms/" + roomId + "/hold", payload, correlationId).block(timeout);
-            // Подтверждение (confirm)
+            
             callHotel("/rooms/" + roomId + "/confirm", Map.of("requestId", requestId), correlationId).block(timeout);
             booking.setStatus(Booking.Status.CONFIRMED);
             bookingRepository.save(booking);
             log.info("[{}] Booking CONFIRMED", correlationId);
         } catch (Exception e) {
             log.warn("[{}] Booking flow failed: {}", correlationId, e.toString());
-            // Компенсация (release) при ошибке
+            
             try { callHotel("/rooms/" + roomId + "/release", Map.of("requestId", requestId), correlationId).block(timeout); } catch (Exception ignored) {}
             booking.setStatus(Booking.Status.CANCELLED);
             bookingRepository.save(booking);
@@ -99,7 +99,7 @@ public class BookingService {
                 .retryWhen(Retry.backoff(retries, Duration.ofMillis(300)).maxBackoff(Duration.ofSeconds(2)));
     }
 
-    // Подсказки: получить список комнат из Hotel Service и отсортировать
+    
     public record RoomView(Long id, String number, long timesBooked) {}
 
     public Mono<java.util.List<RoomView>> getRoomSuggestions() {
